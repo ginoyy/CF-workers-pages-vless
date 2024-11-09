@@ -2,7 +2,7 @@
 import { connect } from "cloudflare:sockets";
  
 let Pswd = "trojan";
-const proxyIPs = ["proxy.xxxxxxxx.tk"]; //ts.hpc.tw workers.cloudflare.cyou bestproxy.onecf.eu.org cdn-all.xn--b6gac.eu.org cdn.xn--b6gac.eu.org proxy.xxxxxxxx.tk
+const proxyIPs = ["ts.hpc.tw"]; //ts.hpc.tw edgetunnel.anycast.eu.org bestproxy.onecf.eu.org cdn-all.xn--b6gac.eu.org cdn.xn--b6gac.eu.org proxy.xxxxxxxx.tk
 let cn_hostnames = [''];
 let CDNIP = 'www.visa.com.sg'
 // http_ip
@@ -41,6 +41,7 @@ let PT13 = '2096'
 
 let sha224Password;
 let proxyIP = proxyIPs[Math.floor(Math.random() * proxyIPs.length)];
+let proxyPort = proxyIP.includes(':') ? proxyIP.split(':')[1] : '443';
 const worker_default = {
   /**
    * @param {import("@cloudflare/workers-types").Request} request
@@ -50,7 +51,32 @@ const worker_default = {
    */
   async fetch(request, env, ctx) {
     try {
-      proxyIP = env.proxyip || proxyIP;
+      const { proxyip } = env;
+			if (proxyip) {
+				if (proxyip.includes(']:')) {
+					let lastColonIndex = proxyip.lastIndexOf(':');
+					proxyPort = proxyip.slice(lastColonIndex + 1);
+					proxyIP = proxyip.slice(0, lastColonIndex);
+					
+				} else if (!proxyip.includes(']:') && !proxyip.includes(']')) {
+					[proxyIP, proxyPort = '443'] = proxyip.split(':');
+				} else {
+					proxyPort = '443';
+					proxyIP = proxyip;
+				}				
+			} else {
+				if (proxyIP.includes(']:')) {
+					let lastColonIndex = proxyIP.lastIndexOf(':');
+					proxyPort = proxyIP.slice(lastColonIndex + 1);
+					proxyIP = proxyIP.slice(0, lastColonIndex);	
+				} else if (!proxyIP.includes(']:') && !proxyIP.includes(']')) {
+					[proxyIP, proxyPort = '443'] = proxyIP.split(':');
+				} else {
+					proxyPort = '443';
+				}	
+			}
+			console.log('ProxyIP:', proxyIP);
+			console.log('ProxyPort:', proxyPort);
       CDNIP = env.cdnip || CDNIP;
       Pswd = env.pswd || Pswd;
       IP1 = env.ip1 || IP1;
@@ -191,8 +217,16 @@ const worker_default = {
 				if(isValidIP(tmp_ip))
 				{
 					proxyIP=tmp_ip;
-				}
-				
+					if (proxyIP.includes(']:')) {
+						let lastColonIndex = proxyIP.lastIndexOf(':');
+						proxyPort = proxyIP.slice(lastColonIndex + 1);
+						proxyIP = proxyIP.slice(0, lastColonIndex);	
+					} else if (!proxyIP.includes(']:') && !proxyIP.includes(']')) {
+						[proxyIP, proxyPort = '443'] = proxyIP.split(':');
+					} else {
+						proxyPort = '443';
+					}
+				}	
 			}
         return await trojanOverWSHandler(request);
 		}
@@ -374,7 +408,7 @@ async function handleTCPOutBound(remoteSocket, addressRemote, portRemote, rawCli
     return tcpSocket2;
   }
   async function retry() {
-    const tcpSocket2 = await connectAndWrite(proxyIP || addressRemote, portRemote);
+    const tcpSocket2 = await connectAndWrite(proxyIP || addressRemote, proxyPort || portRemote);
     tcpSocket2.closed
       .catch((error) => {
         console.log("retry tcpSocket closed error", error);
@@ -498,7 +532,7 @@ export { worker_default as default };
 function gettrojanConfig(Pswd, hostName) {
   const wtrojanws = `trojan://${Pswd}\u0040${CDNIP}:8880?security=none&type=ws&host=${hostName}&path=%2F%3Fed%3D2560#${hostName}`;
   const ptrojanwstls = `trojan://${Pswd}\u0040${CDNIP}:8443?security=tls&type=ws&host=${hostName}&sni=${hostName}&fp=random&path=%2F%3Fed%3D2560#${hostName}`;
-  const note = `甬哥博客地址：https://ygkkk.blogspot.com\n甬哥YouTube频道：https://www.youtube.com/@ygkkk\n甬哥TG电报群组：https://t.me/+jZHc6-A-1QQ5ZGVl\n甬哥TG电报频道：https://t.me/+DkC9ZZUgEFQzMTZl\n\nProxyIP全局运行中：${proxyIP}`;
+  const note = `甬哥博客地址：https://ygkkk.blogspot.com\n甬哥YouTube频道：https://www.youtube.com/@ygkkk\n甬哥TG电报群组：https://t.me/ygkkktg\n甬哥TG电报频道：https://t.me/ygkkktgpd\n\nProxyIP全局运行中：${proxyIP}`;
   const ty = `https://${hostName}/${Pswd}/ty`
   const cl = `https://${hostName}/${Pswd}/cl`
   const sb = `https://${hostName}/${Pswd}/sb`
@@ -543,7 +577,7 @@ ${displayHtml}
 <div class="container">
     <div class="row">
         <div class="col-md-12">
-            <h1>Cloudflare-workers/pages-trojan代理脚本 V24.7.25</h1>
+            <h1>Cloudflare-workers/pages-trojan代理脚本 V24.10.18</h1>
 			<hr>
             <p>${noteshow}</p>
             <hr>
@@ -616,7 +650,7 @@ ${displayHtml}
 			<br>
 			<h3>3：聚合通用、Clash-meta、Sing-box订阅链接如下：</h3>
 			<hr>
-			<p>注意：<br>1、默认每个订阅链接包含TLS+非TLS共13个端口节点 (Clash节点仅6个TLS节点)<br>2、当前workers域名作为订阅链接，需通过代理进行订阅更新<br>3、sing-box订阅已集成分片功能，并不保证每个客户端可用，否则仅非TLS节点可用</p>			
+			<p>注意：<br>1、默认每个订阅链接包含TLS+非TLS共13个端口节点 (Clash节点仅6个TLS节点)<br>2、当前workers域名作为订阅链接，需通过代理进行订阅更新<br>3、如使用的客户端不支持分片功能，则TLS节点不可用</p>	
                         <hr>
 			<table class="table">
 					<thead>
@@ -675,7 +709,7 @@ ${displayHtml}
 <div class="container">
     <div class="row">
         <div class="col-md-12">
-            <h1>Cloudflare-workers/pages-trojan代理脚本 V24.7.25</h1>
+            <h1>Cloudflare-workers/pages-trojan代理脚本 V24.10.18</h1>
 			<hr>
             <p>${noteshow}</p>
             <hr>
@@ -1158,8 +1192,6 @@ return `{
         "password": "${Pswd}"
       },
       {
-        "tcp_fast_open": true,
-        "udp_fragment": true,
         "server": "${IP8}",
         "server_port": ${PT8},
         "tag": "CF_T8_${IP8}_${PT8}",
@@ -1184,9 +1216,7 @@ return `{
         "type": "trojan",
         "password": "${Pswd}"
       },
-      {
-        "tcp_fast_open": true,
-        "udp_fragment": true,      
+      {     
         "server": "${IP9}",
         "server_port": ${PT9},
         "tag": "CF_T9_${IP9}_${PT9}",
@@ -1211,9 +1241,7 @@ return `{
         "type": "trojan",
         "password": "${Pswd}"
       },
-      {
-        "tcp_fast_open": true,
-        "udp_fragment": true,      
+      {     
         "server": "${IP10}",
         "server_port": ${PT10},
         "tag": "CF_T10_${IP10}_${PT10}",
@@ -1238,9 +1266,7 @@ return `{
         "type": "trojan",
         "password": "${Pswd}"
       },
-      {
-        "tcp_fast_open": true,
-        "udp_fragment": true,      
+      {     
         "server": "${IP11}",
         "server_port": ${PT11},
         "tag": "CF_T11_${IP11}_${PT11}",
@@ -1266,8 +1292,6 @@ return `{
         "password": "${Pswd}"
       },
       {
-        "tcp_fast_open": true,
-        "udp_fragment": true,
         "server": "${IP12}",
         "server_port": ${PT12},
         "tag": "CF_T12_${IP12}_${PT12}",
@@ -1292,9 +1316,7 @@ return `{
         "type": "trojan",
         "password": "${Pswd}"
       },
-      {
-        "tcp_fast_open": true,
-        "udp_fragment": true,      
+      {     
         "server": "${IP13}",
         "server_port": ${PT13},
         "tag": "CF_T13_${IP13}_${PT13}",
@@ -1481,7 +1503,7 @@ proxies:
   password: ${Pswd}
   udp: false
   sni: ${hostName}
-  network: ws}
+  network: ws
   ws-opts:
     path: "/?ed=2560"
     headers:
